@@ -27,12 +27,13 @@
 unit DUNitX.Loggers.GUIX;
 
 interface
+{$I DUnitX.Inc}
 
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Graphics, FMX.Controls, FMX.Forms, FMX.Dialogs, FMX.StdCtrls,
   System.Actions, FMX.ActnList, FMX.Layouts, FMX.TreeView, FMX.Edit,
-  DUnitX.TestFramework, DUnitX.InternalInterfaces, FMX.ListView.Types,
+  DUnitX.TestFramework, DUnitX.Extensibility, DUnitX.InternalInterfaces, FMX.ListView.Types,
   FMX.ListView, FMX.ListBox, Generics.Collections, FMX.Memo;
 
 type
@@ -422,7 +423,11 @@ begin
   FFullName := TestFullName;
   FImage := TImage.Create(Owner);
   FImage.Parent := Self;
-  FImage.Align := TAlignLayout.alRight;
+  {$IFDEF DELPHI_XE6_UP}
+    FImage.Align := TAlignLayout.Right;
+  {$ELSE}
+    FImage.Align := TAlignLayout.alRight;
+  {$ENDIF}
 
   FImage.Bitmap.Create(15, 15);
   FImage.Bitmap.Clear(TAlphaColorRec.Gray);
@@ -447,7 +452,7 @@ begin
      FImage.Bitmap.Clear(TAlphaColorRec.Green);
    end;
    TTestResultType.Failure: begin
-     FImage.Bitmap.Clear(TAlphaColorRec.Darksalmon);
+     FImage.Bitmap.Clear(TAlphaColorRec.DarkRed);
    end;
    TTestResultType.Error: begin
      FImage.Bitmap.Clear(TAlphaColorRec.Red);

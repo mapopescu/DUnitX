@@ -35,6 +35,8 @@ type
   {$M+}
   [TestFixture]
   TTestsAssert = class
+  private
+    procedure WillNotRaise_With_NonDescendingClass;
   published
     [Test]
     procedure Pass_Throws_ETestPass_Exception;
@@ -56,6 +58,10 @@ type
     procedure AreEqual_Extended_Throws_No_Exception_When_Values_Are_Equal;
     [Test]
     procedure AreEqual_Extended_Throws_ETestFailure_When_Values_Are_NotEqual;
+    [Test]
+    procedure AreEqual_Double_Throws_No_Exception_When_Values_Are_Equal;
+    [Test]
+    procedure AreEqual_Double_Throws_ETestFailure_When_Values_Are_NotEqual;
     [Test]
     procedure AreEqual_TClass_Throws_No_Exception_When_Classes_Are_Equal;
     [Test]
@@ -88,13 +94,39 @@ type
     procedure WillRaiseWithMessage_Without_Exception_Class_With_Message_Will_Capture_Any_Exception_With_Message;
     [Test]
     procedure WillRaiseWithMessage_Exception_Not_Thrown_Throws_ETestFailure_Exception;
+    [Test]
+    procedure WillRaiseDescenadant_With_NonDescendingClass;
+    [Test]
+    procedure WillRaiseDescenadant_With_DescendingClass;
+    [Test]
+    procedure WillRaiseDescenadant_With_ExactClass;
+    [Test]
+    procedure WillRaiseAny;
+    [Test]
+    procedure WillRaiseAny_NoExecption;
+    [Test]
+    procedure WillNotRaise_With_ExactClass_Positive;
+    [Test]
+    procedure WillNotRaise_With_ExactClass_Negative;
+    [Test]
+    procedure WillNotRaise_With_DescendingClass_Positive;
+    [Test]
+    procedure WillNotRaise_With_DescendingClass_Negative;
+    [Test]
+    procedure WillNotRaise_With_NoClass;
+
+
+
+
+
   end;
 
 implementation
 
 uses
   Delphi.Mocks,
-  SysUtils;
+  SysUtils,
+  Classes;
 
 type
   {$M+}
@@ -190,6 +222,150 @@ begin
 end;
 
 
+procedure TTestsAssert.WillNotRaise_With_DescendingClass_Negative;
+begin
+ Assert.WillRaise(
+  procedure
+  begin
+    Assert.WillNotRaiseDescendant(
+      procedure
+      begin
+        raise EFilerError.Create('Test');
+      end,
+      EStreamError);
+  end,
+  ETestFailure);
+end;
+
+procedure TTestsAssert.WillNotRaise_With_DescendingClass_Positive;
+begin
+    Assert.WillNotRaiseDescendant(
+      procedure
+      begin
+        raise Exception.Create('Test');
+      end,
+      EStreamError);
+end;
+
+procedure TTestsAssert.WillNotRaise_With_ExactClass_Negative;
+const
+  EXPECTED_EXCEPTION_MSG = 'Passing Message';
+begin
+ Assert.WillRaise(
+ procedure
+ begin
+   Assert.WillNotRaise(
+     procedure
+     begin
+       raise EStreamError.Create('Error Message');
+     end,
+     EStreamError,EXPECTED_EXCEPTION_MSG);
+ end,
+ ETestFailure,
+ EXPECTED_EXCEPTION_MSG);
+end;
+
+procedure TTestsAssert.WillNotRaise_With_ExactClass_Positive;
+begin
+ Assert.WillNotRaise(
+   procedure
+   begin
+     // Don't raise an exception we are looking for.
+     raise Exception.Create('Error Message');
+   end,
+   EStreamError,'');
+end;
+
+procedure TTestsAssert.WillNotRaise_With_NoClass;
+const
+  EXPECTED_EXCEPTION_MSG = 'Passing Message';
+begin
+ Assert.WillRaise(
+ procedure
+ begin
+   Assert.WillNotRaise(
+     procedure
+     begin
+       // Raise an exception
+       raise Exception.Create('Error Message');
+     end);
+ end,
+ ETestFailure,
+ EXPECTED_EXCEPTION_MSG);
+end;
+
+procedure TTestsAssert.WillNotRaise_With_NonDescendingClass;
+begin
+
+end;
+
+procedure TTestsAssert.WillRaiseAny;
+begin
+  Assert.WillRaiseAny(
+    procedure
+    begin
+      raise EAbort.Create('Test');
+    end);
+end;
+
+procedure TTestsAssert.WillRaiseAny_NoExecption;
+const
+  EXPECTED_EXCEPTION_MSG = 'Failed Message';
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+       Assert.WillRaiseAny(
+               procedure
+               begin
+                 // Do nothing on purpose.
+               end
+       );
+    end, ETestFailure, EXPECTED_EXCEPTION_MSG);
+end;
+
+procedure TTestsAssert.WillRaiseDescenadant_With_DescendingClass;
+const
+  EXPECTED_EXCEPTION_MSG = 'Failed Message';
+begin
+ Assert.WillRaiseDescendant(
+   procedure
+   begin
+     raise EFilerError.Create('Test');
+   end,
+   EStreamError,EXPECTED_EXCEPTION_MSG);
+
+end;
+
+procedure TTestsAssert.WillRaiseDescenadant_With_ExactClass;
+const
+  EXPECTED_EXCEPTION_MSG = 'Failed Message';
+begin
+ Assert.WillRaiseDescendant(
+   procedure
+   begin
+     raise EFilerError.Create('Test');
+   end,
+   EFilerError,EXPECTED_EXCEPTION_MSG);
+end;
+
+procedure TTestsAssert.WillRaiseDescenadant_With_NonDescendingClass;
+const
+  EXPECTED_EXCEPTION_MSG = 'Failed Message';
+begin
+ Assert.WillRaise(
+   procedure
+   begin
+     Assert.WillRaiseDescendant(
+       procedure
+       begin
+         raise Exception.Create('Test');
+       end,
+       EStreamError,EXPECTED_EXCEPTION_MSG);
+   end,
+   ETestFailure,EXPECTED_EXCEPTION_MSG);
+end;
+
 procedure TTestsAssert.WillRaiseWithMessage_Exception_And_Message_Will_Check_ExceptionClass_And_Exception_Message;
 const
   EXPECTED_EXCEPTION_MSG = 'Passing Message';
@@ -258,11 +434,37 @@ begin
     end, ETestFailure);
 end;
 
+procedure TTestsAssert.AreEqual_Double_Throws_ETestFailure_When_Values_Are_NotEqual;
+const
+  ACTUAL_DOUBLE : double = 1.19E20;
+  EXPECTED_DOUBLE : double = 1.18E20;
+  TOLERANCE_DOUBLE : double = 0.001E20;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      Assert.AreEqual(ACTUAL_DOUBLE, EXPECTED_DOUBLE, TOLERANCE_DOUBLE);
+    end, ETestFailure, Format('[%e] with in [%e] from [%e]', [ACTUAL_DOUBLE, TOLERANCE_DOUBLE, EXPECTED_DOUBLE]));
+end;
+
+procedure TTestsAssert.AreEqual_Double_Throws_No_Exception_When_Values_Are_Equal;
+const
+  ACTUAL_DOUBLE : double = 1.19E20;
+  EXPECTED_DOUBLE : double  = 1.18E20;
+  TOLERANCE_DOUBLE : double  = 0.011E20;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Assert.AreEqual(ACTUAL_DOUBLE, EXPECTED_DOUBLE, TOLERANCE_DOUBLE);
+    end, Exception);
+end;
+
 procedure TTestsAssert.AreEqual_Extended_Throws_ETestFailure_When_Values_Are_NotEqual;
 const
-  ACTUAL_EXTENDED = 1.19E20;
-  EXPECTED_EXTENDED = 1.18E20;
-  TOLERANCE_EXTENDED = 0.001E20;
+  ACTUAL_EXTENDED : extended  = 1.19E20;
+  EXPECTED_EXTENDED : extended = 1.18E20;
+  TOLERANCE_EXTENDED : extended = 0.001E20;
 begin
   Assert.WillRaise(
     procedure
@@ -274,9 +476,9 @@ end;
 
 procedure TTestsAssert.AreEqual_Extended_Throws_No_Exception_When_Values_Are_Equal;
 const
-  ACTUAL_EXTENDED = 1.19E20;
-  EXPECTED_EXTENDED = 1.18E20;
-  TOLERANCE_EXTENDED = 0.011E20;
+  ACTUAL_EXTENDED : extended = 1.19E20;
+  EXPECTED_EXTENDED : extended = 1.18E20;
+  TOLERANCE_EXTENDED : extended = 0.011E20;
 begin
   Assert.WillNotRaise(
     procedure
