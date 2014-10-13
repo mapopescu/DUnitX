@@ -36,7 +36,6 @@ type
   [TestFixture]
   TTestsAssert = class
   private
-    procedure WillNotRaise_With_NonDescendingClass;
   published
     [Test]
     procedure Pass_Throws_ETestPass_Exception;
@@ -115,9 +114,17 @@ type
     [Test]
     procedure WillNotRaise_With_NoClass;
 
+    [Test]
+    procedure Test_Implements_Will_Fail_If_Not_Implemented;
 
+    [Test]
+    procedure Test_Implements_Will_Pass_If_Implemented;
 
+    [Test]
+    procedure Test_AreSameOnSameObjectWithDifferentInterfaces_No_Exception;
 
+    [Test]
+    procedure Test_AreNotSameOnSameObjectWithDifferentInterfaces_Throws_Exception;
 
   end;
 
@@ -140,6 +147,16 @@ type
   end;
   TMockClassTwo = class(TObject)
   end;
+
+  IAmImplemented = interface
+    ['{4B503CDD-6262-403C-BF68-5D5DE01C3B13}']
+  end;
+
+  TImplemented = class(TInterfacedObject,IAmImplemented)
+  end;
+
+
+
 
 { TTestAssert }
 
@@ -222,6 +239,31 @@ begin
 end;
 
 
+procedure TTestsAssert.Test_Implements_Will_Fail_If_Not_Implemented;
+var
+  obj : IInterface;
+begin
+  obj := TInterfacedObject.Create;
+  Assert.WillRaise(
+  procedure
+  begin
+    Assert.Implements<IAmImplemented>(obj);
+  end,
+  ETestFailure);
+end;
+
+procedure TTestsAssert.Test_Implements_Will_Pass_If_Implemented;
+var
+  obj : IInterface;
+begin
+  obj := TImplemented.Create;
+  Assert.WillNotRaiseAny(
+    procedure
+    begin
+      Assert.Implements<IAmImplemented>(obj);
+    end);
+end;
+
 procedure TTestsAssert.WillNotRaise_With_DescendingClass_Negative;
 begin
  Assert.WillRaise(
@@ -294,10 +336,6 @@ begin
  EXPECTED_EXCEPTION_MSG);
 end;
 
-procedure TTestsAssert.WillNotRaise_With_NonDescendingClass;
-begin
-
-end;
 
 procedure TTestsAssert.WillRaiseAny;
 begin
@@ -649,6 +687,31 @@ begin
   finally
     FreeAndNil(mock);
   end;
+end;
+
+
+procedure TTestsAssert.Test_AreSameOnSameObjectWithDifferentInterfaces_No_Exception;
+var
+  myObject  : IInterfaceList;
+begin
+  myObject := TInterfaceList.Create;
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Assert.AreSame(myObject, myObject as IInterface);
+    end, ETestFailure);
+end;
+
+procedure TTestsAssert.Test_AreNotSameOnSameObjectWithDifferentInterfaces_Throws_Exception;
+var
+  myObject  : IInterfaceList;
+begin
+  myObject := TInterfaceList.Create;
+  Assert.WillRaise(
+    procedure
+    begin
+      Assert.AreNotSame(myObject, myObject as IInterface);
+    end, ETestFailure);
 end;
 
 initialization
