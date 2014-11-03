@@ -84,6 +84,10 @@ type
     [Test]
     procedure AreEqual_Throws_No_Exception_When_Values_Are_Exactly_Equal;
     [Test]
+    procedure AreNotEqual_Integer_Throws_No_Exception_When_Values_Are_NotEqual;
+    [Test]
+    procedure AreNotEqual_Integer_Throws_Exception_When_Values_Are_Equal;
+    [Test]
     procedure WillRaise_Without_Exception_Class_Will_Capture_Any_Exception;
     [Test]
     procedure WillRaiseWithMessage_Exception_And_Message_Will_Check_ExceptionClass_And_Exception_Message;
@@ -126,6 +130,17 @@ type
     [Test]
     procedure Test_AreNotSameOnSameObjectWithDifferentInterfaces_Throws_Exception;
 
+    [Test]
+    procedure Contains_ArrayOfT_Throws_No_Exception_When_Value_In_Array;
+
+    [Test]
+    procedure Contains_ArrayOfT_Throws_Exception_When_Value_Not_In_Array;
+
+    [Test]
+    procedure DoesNotContain_ArrayOfT_Throws_No_Exception_When_Value_Not_In_Array;
+
+    [Test]
+    procedure DoesNotContain_ArrayOfT_Throws_Exception_When_Value_In_Array;
   end;
 
 implementation
@@ -711,6 +726,61 @@ begin
     procedure
     begin
       Assert.AreNotSame(myObject, myObject as IInterface);
+    end, ETestFailure);
+end;
+
+procedure TTestsAssert.AreNotEqual_Integer_Throws_No_Exception_When_Values_Are_NotEqual;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Assert.AreNotEqual(1, 2);
+    end, ETestFailure);
+end;
+
+procedure TTestsAssert.AreNotEqual_Integer_Throws_Exception_When_Values_Are_Equal;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      Assert.AreNotEqual(1, 1);
+    end, ETestFailure);
+end;
+
+procedure TTestsAssert.Contains_ArrayOfT_Throws_No_Exception_When_Value_In_Array;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Assert.Contains<string>(['x', 'y', 'z'], 'x');
+    end, ETestFailure);
+end;
+
+procedure TTestsAssert.Contains_ArrayOfT_Throws_Exception_When_Value_Not_In_Array;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      Assert.Contains<string>(['x', 'y', 'z'], 'a');
+    end, ETestFailure);
+end;
+
+procedure TTestsAssert.DoesNotContain_ArrayOfT_Throws_No_Exception_When_Value_Not_In_Array;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Assert.DoesNotContain<string>(['x', 'y', 'z'], 'a');
+    end, ETestFailure);
+end;
+
+
+procedure TTestsAssert.DoesNotContain_ArrayOfT_Throws_Exception_When_Value_In_Array;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      Assert.DoesNotContain<string>(['x', 'y', 'z'], 'x');
     end, ETestFailure);
 end;
 
