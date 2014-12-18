@@ -257,6 +257,7 @@ var
   currentFixture: ITestFixture;
 begin
 //  WriteLn('Generating Tests for : ' + fixture.FullName);
+
   if fixture.HasChildFixtures then
   begin
     for childFixture in fixture.Children do
@@ -276,8 +277,8 @@ begin
   setupFixtureMethod := nil;
   tearDownFixtureMethod := nil;
 
-  //important to use declared here.. otherwise we are looking at TObject as well.
-  methods := rType.GetDeclaredMethods;
+  //Note : Relying on the order of the methods return, ie current type, then up the heirachy
+  methods := rType.GetMethods;
   for method in methods do
   begin
     ignoredTest := false;
@@ -321,44 +322,47 @@ begin
       end;
     end;
 
-    {$IFDEF DELPHI_XE_UP}
-    //if there is a Destructor then we will use it as the fixture
-    //Teardown method.
-    if method.IsDestructor and (Length(method.GetParameters) = 0) then
-    begin
-      currentFixture.SetTearDownFixtureMethod(method.Name,TTestMethod(meth),true);
-      tearDownFixtureIsDestructor := true;
-      tearDownFixtureMethod := TTestMethod(meth);
-      continue;
-    end;
-    {$ENDIF}
-
-    if method.TryGetAttributeOfType<SetupAttribute>(setupAttrib) then
-    begin
-      setupMethod := TTestMethod(meth);
-      currentFixture.SetSetupTestMethod(method.Name,setupMethod);
-      continue;
-    end;
-
-    if method.TryGetAttributeOfType<TearDownAttribute>(tearDownAttrib) then
-    begin
-      tearDownMethod := TTestMethod(meth);
-      currentFixture.SetTearDownTestMethod(method.Name,tearDownMethod);
-      continue;
-    end;
-
-    if method.TryGetAttributeOfType<SetupFixtureAttribute>(setupFixtureAttrib) then
+    if (not Assigned(setupFixtureMethod)) and method.TryGetAttributeOfType<SetupFixtureAttribute>(setupFixtureAttrib) then
     begin
        setupFixtureMethod := TTestMethod(meth);
        currentFixture.SetSetupFixtureMethod(method.Name,setupFixtureMethod);
        continue;
     end;
 
-    if (not tearDownFixtureIsDestructor) and method.TryGetAttributeOfType<TearDownFixtureAttribute>(tearDownFixtureAttrib) then
+    {$IFDEF DELPHI_XE_UP}
+    //if there is a Destructor then we will use it as the fixture
+    //Teardown method.
+    if (not Assigned(tearDownFixtureMethod)) and method.IsDestructor and (Length(method.GetParameters) = 0) then
+    begin
+      tearDownFixtureMethod := TTestMethod(meth);
+      currentFixture.SetTearDownFixtureMethod(method.Name,TTestMethod(meth),true);
+      tearDownFixtureIsDestructor := true;
+      continue;
+    end;
+    {$ENDIF}
+
+    //if we had previously assigned a destructor as the teardownfixturemethod, then we can still override that with an attributed one.
+    if ((not Assigned(tearDownFixtureMethod)) or tearDownFixtureIsDestructor) and method.TryGetAttributeOfType<TearDownFixtureAttribute>(tearDownFixtureAttrib) then
     begin
        tearDownFixtureMethod := TTestMethod(meth);
        currentFixture.SetTearDownFixtureMethod(method.Name,tearDownFixtureMethod,false);
+       tearDownFixtureIsDestructor := false;
        continue;
+    end;
+
+
+    if (not Assigned(setupMethod)) and method.TryGetAttributeOfType<SetupAttribute>(setupAttrib) then
+    begin
+      setupMethod := TTestMethod(meth);
+      currentFixture.SetSetupTestMethod(method.Name,setupMethod);
+      continue;
+    end;
+
+    if (not Assigned(tearDownMethod)) and  method.TryGetAttributeOfType<TearDownAttribute>(tearDownAttrib) then
+    begin
+      tearDownMethod := TTestMethod(meth);
+      currentFixture.SetTearDownTestMethod(method.Name,tearDownMethod);
+      continue;
     end;
 
     if method.TryGetAttributeOfType<IgnoreAttribute>(ignoredAttrib) then
@@ -372,6 +376,9 @@ begin
        testEnabled := testAttrib.Enabled;
        isTestMethod := true;
     end;
+
+    if method.IsDestructor or method.IsConstructor then
+      continue;
 
     //if a test case is disabled then just ignore it.
     if testEnabled then
@@ -433,68 +440,6 @@ begin
       end;
     end;
   end;
-
-
-  if (not Assigned(setupMethod)) or (not Assigned(setupFixtureMethod))
-     or (not Assigned(tearDownMethod))  or (not Assigned(tearDownFixtureMethod))then
-  begin
-
-    rBaseType := rType.BaseType;
-    while Assigned(rBaseType) do
-    begin
-      if not rBaseType.TryGetAttributeOfType<TestFixtureAttribute>(fixtureAttrib) then
-      begin
-        methods := rBaseType.GetDeclaredMethods;
-        for method in methods do
-        begin
-          meth.Code := method.CodeAddress;
-          meth.Data := fixture.FixtureInstance;
-
-          if not Assigned(setupMethod) then
-          begin
-            attribute := method.GetAttributeOfType<SetupAttribute>;
-            if Assigned(attribute) then
-            begin
-              setupMethod := TTestMethod(meth);
-              fixture.SetSetupTestMethod(method.Name,setupMethod);
-            end;
-          end;
-
-          if not Assigned(setupFixtureMethod) then
-          begin
-            attribute := method.GetAttributeOfType<SetupFixtureAttribute>;
-            if Assigned(attribute) then
-            begin
-              setupFixtureMethod := TTestMethod(meth);
-              fixture.SetSetupFixtureMethod(method.Name,setupFixtureMethod);
-            end;
-          end;
-
-          if not Assigned(tearDownMethod) then
-          begin
-            attribute := method.GetAttributeOfType<TearDownAttribute>;
-            if Assigned(attribute) then
-            begin
-              tearDownMethod := TTestMethod(meth);
-              fixture.SetTearDownTestMethod(method.Name,tearDownMethod);
-            end;
-          end;
-
-          if not Assigned(tearDownFixtureMethod) then
-          begin
-            attribute := method.GetAttributeOfType<TearDownFixtureAttribute>;
-            if Assigned(attribute) then
-            begin
-              tearDownFixtureMethod := TTestMethod(meth);
-              fixture.SetTearDownFixtureMethod(method.Name,tearDownFixtureMethod,false);
-            end;
-          end;
-        end;
-      end;
-      rBaseType := rBaseType.BaseType;
-    end;
-  end;
-
 end;
 
 function TDUnitXFixtureProvider.TryGetAttributeOfType<T>(const attributes : TArray<TCustomAttribute>; var attribute : T) : boolean;

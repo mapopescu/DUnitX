@@ -109,6 +109,8 @@ type
     function IsNameSpaceOnly : boolean;
     procedure OnMethodExecuted(const AMethod : TTestMethod);
 
+    procedure ExecuteFixtureTearDown;
+
     function AddTest(const AMethod : TTestMethod; const AName : string; const ACategory  : string; const AEnabled : boolean = true;const AIgnored : boolean = false; const AIgnoreReason : string = '') : ITest;
     function AddTestCase(const ACaseName : string; const AName : string; const ACategory  : string; const AMethod : TRttiMethod; const AEnabled : boolean; const AArgs : TValueArray) : ITest;
 
@@ -121,6 +123,7 @@ type
     procedure SetTearDownFixtureMethod(const AMethodName : string; const AMethod : TTestMethod; const AIsDestructor : boolean);
     procedure SetTestInOwnThread(const value: Boolean);
     class constructor Create;
+    class destructor Destroy;
   public
     constructor Create(const AName : string; const ACategory : string; const AInstance : TObject);overload;
     constructor Create(const AName : string; const ACategory : string; const AClass : TClass);overload;
@@ -218,20 +221,38 @@ begin
     {$ENDIF}
       FFixtureInstance := FTestClass.Create;
   end;
-
 end;
 
 destructor TDUnitXTestFixture.Destroy;
 begin
   if FFixtureInstance <> nil then
     FFixtureInstance.Free;
+  if FChildren <> nil then
+    FChildren.Clear;
+  FChildren := nil;
+
   FCategories.Free;
+  FTests.Clear;
   FTests := nil;
   inherited;
 end;
 
 
 
+
+procedure TDUnitXTestFixture.ExecuteFixtureTearDown;
+begin
+  if Assigned(FTearDownFixtureMethod) then
+  begin
+    if FTearDownFixtureIsDestructor then
+    begin
+      FFixtureInstance.Free;
+      FFixtureInstance := nil;
+    end
+    else
+      FTearDownFixtureMethod();
+  end;
+end;
 
 function TDUnitXTestFixture.GetActiveTestCount: cardinal;
 begin
@@ -416,12 +437,8 @@ end;
 
 procedure TDUnitXTestFixture.OnMethodExecuted(const AMethod: TTestMethod);
 begin
-  if FTearDownFixtureIsDestructor then
-  begin
-    if TMethod(AMethod).Code = TMethod(FTearDownFixtureMethod).Code then
+  if FTearDownFixtureIsDestructor and (TMethod(AMethod).Code = TMethod(FTearDownFixtureMethod).Code) then
       FFixtureInstance := nil;
-  end;
-
 end;
 
 procedure TDUnitXTestFixture.SetEnabled(const value: Boolean);
@@ -495,6 +512,12 @@ begin
   FRttiContext := TRttiContext.Create;
 end;
 
+class destructor TDUnitXTestFixture.Destroy;
+begin
+  FRttiContext.Free;
+end;
+
+
 constructor TDUnitXTestFixture.Create(const AName: string; const ACategory : string; const AInstance: TObject);
 begin
   FFixtureInstance := AInstance;
@@ -516,6 +539,7 @@ begin
   result := TDUnitXTestCase.Create(FFixtureInstance, Self, ACaseInfo.Name,  AMethod.Name, ACategory, AMethod, ATestEnabled, ACaseInfo.Values);
   result.IgnoreMemoryLeaks := getIgnoreMemoryLeaksForMethod(AMethod);
 end;
+
 
 end.
 
